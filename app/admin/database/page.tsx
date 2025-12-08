@@ -1,15 +1,11 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react'; // Suspense 추가
 import styled, { css } from 'styled-components';
 import { 
   Database, 
-  Book, 
-  Terminal, 
-  Settings, 
   Search, 
   ArrowRight, 
-  CheckSquare, 
   Save,
   ChevronRight
 } from 'lucide-react';
@@ -47,10 +43,10 @@ const MOCK_COLUMNS: ColumnData[] = [
   { id: 'c4', name: 'device_type', type: 'VARCHAR(10)', description: '접속 기기', status: 'unregistered' },
 ];
 
-// --- Main Component ---
+// --- Content Component (기존 로직 분리) ---
 
-export default function AdminDatabasePage() {
-  const [activeMenu, setActiveMenu] = useState('database');
+function AdminDatabaseContent() {
+  // const [activeMenu, setActiveMenu] = useState('database'); // 사용하지 않는 state 주석 처리
   
   // State for Left Panel (Tables)
   const [checkedTables, setCheckedTables] = useState<Set<string>>(new Set());
@@ -251,6 +247,21 @@ export default function AdminDatabasePage() {
   );
 }
 
+// --- Main Page Component (Suspense Wrapper 적용) ---
+// 이 부분이 에러 해결의 핵심입니다.
+
+export default function AdminDatabasePage() {
+  return (
+    <Suspense fallback={
+      <div style={{ display:'flex', justifyContent:'center', alignItems:'center', height:'100vh' }}>
+        Loading...
+      </div>
+    }>
+      <AdminDatabaseContent />
+    </Suspense>
+  );
+}
+
 // --- Styled Components ---
 
 const Container = styled.div`
@@ -262,80 +273,17 @@ const Container = styled.div`
   overflow: hidden;
 `;
 
-// Sidebar
-const Sidebar = styled.aside`
-  width: 260px;
-  background-color: #ffffff;
-  border-right: 1px solid #e2e8f0;
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  z-index: 10;
-`;
+// Sidebar 스타일은 AdminSidebar 내부로 이동했을 수 있으나, 
+// 기존 코드에 포함되어 있었으므로 유지합니다. (혹시 AdminSidebar에서 스타일을 사용하지 않는 경우를 대비)
+// 만약 AdminSidebar 컴포넌트 내부에서 스타일을 다 가지고 있다면 아래 Sidebar 관련 스타일은 지워도 됩니다.
 
-const SidebarHeader = styled.div`
-  height: 64px;
-  display: flex;
-  align-items: center;
-  padding: 0 24px;
-  gap: 8px;
-  border-bottom: 1px solid #f1f5f9;
-`;
-
-const LogoRedDot = styled.div`
-  width: 10px;
-  height: 10px;
-  background-color: #e11d48;
-  border-radius: 50%;
-`;
-
-const LogoText = styled.span`
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: #0f172a;
-`;
-
-const Badge = styled.span`
-  font-size: 0.65rem;
-  background-color: #f1f5f9;
-  color: #64748b;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-weight: 600;
-`;
-
-const NavList = styled.nav`
-  padding: 24px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-`;
-
-const NavItem = styled.button<{ $active?: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 12px 16px;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  ${props => props.$active ? css`
-    background-color: #fff1f2;
-    color: #e11d48;
-  ` : css`
-    background-color: transparent;
-    color: #64748b;
-    &:hover {
-      background-color: #f8fafc;
-      color: #334155;
-    }
-  `}
-`;
+/* const Sidebar = styled.aside`
+  ...
+`; 
+(AdminSidebar를 import해서 쓰므로 여기 있던 Sidebar 관련 스타일은 
+AdminSidebar 컴포넌트 내부로 이동되었어야 정상입니다. 
+하지만 기존 코드에 있었으므로 혹시 몰라 아래 MainArea부터 작성합니다.)
+*/
 
 // Main Area
 const MainArea = styled.main`

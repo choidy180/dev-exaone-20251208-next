@@ -1,25 +1,37 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import styled, { keyframes, css } from 'styled-components';
+import React, { useState, useEffect, Suspense } from 'react';
+import styled, { keyframes } from 'styled-components';
 import { usePathname, useSearchParams } from 'next/navigation';
 
-export default function GlobalLoader() {
+function GlobalLoaderContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  // 현재 URL 경로 조합 (경로 + 쿼리)
+  const currentKey = `${pathname}?${searchParams.toString()}`;
+
+  // 1. 렌더링 단계에서 상태 추적 (useState 초기값)
+  const [prevKey, setPrevKey] = useState(currentKey);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    // URL(경로 또는 쿼리)이 변경되면 로딩 시작
+  // 2. [핵심] Effect가 아닌 '렌더링 도중'에 즉시 상태 변경
+  // URL이 바뀌면 브라우저가 화면을 그리기(Paint) 전에 isLoading을 true로 강제합니다.
+  if (currentKey !== prevKey) {
+    setPrevKey(currentKey);
     setIsLoading(true);
+  }
 
-    // 1초 후 로딩 종료
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
+  // 3. 로딩이 true가 되면 타이머 시작 (1초 후 해제)
+  useEffect(() => {
+    if (isLoading) {
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 1000); // 1초 유지
 
-    return () => clearTimeout(timer);
-  }, [pathname, searchParams]); // 경로, 파라미터 변경 감지
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
 
   if (!isLoading) return null;
 
@@ -46,13 +58,17 @@ export default function GlobalLoader() {
   );
 }
 
-// --- Animations ---
+export default function GlobalLoader() {
+  return (
+    <Suspense fallback={null}>
+      <GlobalLoaderContent />
+    </Suspense>
+  );
+}
 
-const fadeIn = keyframes`
-  from { opacity: 0; }
-  to { opacity: 1; }
-`;
+// --- Styles & Animations ---
 
+// fadeIn 애니메이션 제거 (즉시 차단을 위해)
 const pulse = keyframes`
   0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7); }
   70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(225, 29, 72, 0); }
@@ -70,22 +86,22 @@ const bounce = keyframes`
   50% { transform: translateY(-4px); }
 `;
 
-// --- Styled Components ---
-
 const Overlay = styled.div`
   position: fixed;
-  inset: 0; /* top, left, right, bottom: 0 */
+  inset: 0;
   z-index: 9999;
   
-  /* Glassmorphism Effect */
-  background: rgba(255, 255, 255, 0.85);
+  /* 배경 불투명도 약간 높임 */
+  background: rgba(255, 255, 255, 0.9); 
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: ${fadeIn} 0.3s ease-out;
+  
+  /* 중요: 등장 애니메이션 제거하여 즉시 차단 */
+  /* animation: fadeIn ... 삭제됨 */
 `;
 
 const LoaderContainer = styled.div`
@@ -105,7 +121,7 @@ const LogoBox = styled.div`
 const PulseDot = styled.div`
   width: 14px;
   height: 14px;
-  background-color: #e11d48; /* Brand Color */
+  background-color: #e11d48;
   border-radius: 50%;
   animation: ${pulse} 1.5s infinite;
 `;

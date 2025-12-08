@@ -33,8 +33,8 @@ export default function RootLayout({
   return (
     <html lang="ko" className={pretendard.variable} suppressHydrationWarning>
       <body suppressHydrationWarning>
-        <GlobalLoader/>
         {children}
+        <GlobalLoader/>
       </body>
     </html>
   );
