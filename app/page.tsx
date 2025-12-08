@@ -64,7 +64,7 @@ export default function ExaoneChatInterface() {
         </HistoryList>
 
         <UserProfileArea>
-          <UserCard>
+          <UserCard onClick={()=> router.push('/admin/database')}>
             <Avatar>U</Avatar>
             <UserName>User Settings</UserName>
           </UserCard>
