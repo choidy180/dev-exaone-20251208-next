@@ -21,9 +21,21 @@ const pretendard = localFont({
 })
 
 export const metadata: Metadata = {
-  title: 'LG EXAONE',
-  description: "Using all Pretendard weights via next/font/local",
-}
+  title: "LG EXAONE", // 브라우저 탭에 뜨는 이름
+  description: "LG EXAONE",
+  openGraph: {
+    title: "LG EXAONE", // 카톡에 뜰 굵은 제목
+    description: "LG EXAONE 서비스에 대한 설명입니다.", // 제목 밑에 작게 뜨는 설명
+    images: [
+      {
+        url: "/exaone.png", // public 폴더 안에 있는 이미지 경로
+        width: 1200,
+        height: 630,
+        alt: "LG EXAONE",
+      },
+    ],
+  },
+};
 
 export default function RootLayout({
   children,
