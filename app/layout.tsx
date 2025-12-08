@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import "./globals.css";
 import localFont from "next/font/local";
 import "flatpickr/dist/flatpickr.min.css";
+import GlobalLoader from "@/components/global-loader";
 
 const pretendard = localFont({
   src: [
@@ -32,6 +33,7 @@ export default function RootLayout({
   return (
     <html lang="ko" className={pretendard.variable} suppressHydrationWarning>
       <body suppressHydrationWarning>
+        <GlobalLoader/>
         {children}
       </body>
     </html>

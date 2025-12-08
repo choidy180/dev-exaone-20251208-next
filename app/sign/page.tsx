@@ -48,7 +48,7 @@ export default function SignupPage() {
           </BackButton>
           <LogoTitle>
             <RedDot />
-            엑사원 챗봇
+            EXAONE 챗봇
           </LogoTitle>
           <PageTitle>회원가입</PageTitle>
           <PageSubtitle>
@@ -154,7 +154,7 @@ export default function SignupPage() {
           </SubmitButton>
 
           <LoginLink>
-            이미 계정이 있으신가요? <strong>로그인하기</strong>
+            이미 계정이 있으신가요? <strong onClick={()=> router.push('/login')}>로그인하기</strong>
           </LoginLink>
 
         </Form>

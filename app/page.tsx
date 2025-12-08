@@ -26,7 +26,7 @@ export default function ExaoneChatInterface() {
         <LogoArea>
           <LogoText>
             <RedDot />
-            엑사원 챗봇
+            EXAONE 챗봇
           </LogoText>
         </LogoArea>
 
@@ -77,7 +77,7 @@ export default function ExaoneChatInterface() {
         
         <Header>
           <Nav>
-            <TextBtn>로그인</TextBtn>
+            <TextBtn onClick={() => router.push('/login')}>로그인</TextBtn>
             <Divider />
             <BlackBtn onClick={()=> router.push('/sign')}>회원가입</BlackBtn>
           </Nav>
@@ -88,7 +88,7 @@ export default function ExaoneChatInterface() {
             
             <WelcomeSection>
               <h2>무엇을 도와드릴까요?</h2>
-              <p>데이터 조회부터 요약, 음성 인식까지 엑사원이 지원합니다.</p>
+              <p>데이터 조회부터 요약, 음성 인식까지 EXAONE이 지원합니다.</p>
             </WelcomeSection>
 
             <CardsGrid>

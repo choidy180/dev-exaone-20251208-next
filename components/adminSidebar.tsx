@@ -53,7 +53,7 @@ export default function AdminSidebar() {
     <SidebarContainer>
       <SidebarHeader onClick={()=> router.push('/')}>
         <LogoRedDot />
-        <LogoText>엑사원 챗봇</LogoText>
+        <LogoText>EXAONE 챗봇</LogoText>
         <Badge>ADMIN</Badge>
       </SidebarHeader>
 
