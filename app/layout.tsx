@@ -20,7 +20,7 @@ const pretendard = localFont({
 })
 
 export const metadata: Metadata = {
-  title: 'basic file',
+  title: 'LG EXAONE',
   description: "Using all Pretendard weights via next/font/local",
 }
 
