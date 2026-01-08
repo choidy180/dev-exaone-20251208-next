@@ -1,87 +1,64 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled, { css } from 'styled-components';
-import { 
-  Plus, 
-  MessageSquare, 
-  Mic, 
-  Send, 
-  Database, 
-  FileText 
-} from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Mic, Send, Database, FileText } from 'lucide-react';
 
-// --- Components ---
+// --- Components Import ---
+import Sidebar from '@/components/side-bar';
+import Navbar from '@/components/nav-bar';
+import LandingPage from '@/components/landing-page'; // 저장하신 랜딩 페이지 컴포넌트 import
 
-export default function ExaoneChatInterface() {
+export default function Home() {
+  // 로그인 상태 관리 (null: 확인 중, false: 미로그인, true: 로그인됨)
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    // 쿠키에서 user_email 확인 함수
+    const checkLoginStatus = () => {
+      const getCookie = (name: string) => {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop()?.split(';').shift();
+      };
+
+      const email = getCookie('user_email');
+      // 이메일 쿠키가 있으면 true, 없으면 false
+      setIsLoggedIn(!!email);
+    };
+
+    checkLoginStatus();
+  }, []);
+
+  // 1. 로그인 확인 중일 때 (깜빡임 방지용 빈 화면 또는 로딩 스피너)
+  if (isLoggedIn === null) {
+    return <div style={{ height: '100vh', background: '#fff' }} />; 
+  }
+
+  // 2. 비로그인 상태 -> 랜딩 페이지 노출
+  if (!isLoggedIn) {
+    return <LandingPage />;
+  }
+
+  // 3. 로그인 상태 -> 채팅 인터페이스 노출 (기존 코드)
+  return <ExaoneChatInterface />;
+}
+
+// --- Logged In Chat Interface (기존 코드 컴포넌트화) ---
+
+function ExaoneChatInterface() {
   const [inputText, setInputText] = useState('');
-  const router = useRouter();
 
   return (
     <Container>
-      
-      {/* --- Left Sidebar --- */}
-      <Sidebar>
-        <LogoArea>
-          <LogoText>
-            <RedDot />
-            EXAONE 챗봇
-          </LogoText>
-        </LogoArea>
-
-        <div style={{ padding: '0 16px 24px' }}>
-          <NewChatButton>
-            <Plus size={20} />
-            새로운 대화
-          </NewChatButton>
-        </div>
-
-        <HistoryList>
-          <HistoryGroup>
-            <GroupLabel>오늘</GroupLabel>
-            <HistoryItem $active>
-              <MessageSquare size={16} />
-              <span>NL-to-SQL 쿼리 요청</span>
-            </HistoryItem>
-          </HistoryGroup>
-
-          <HistoryGroup>
-            <GroupLabel>지난 7일</GroupLabel>
-            <HistoryItem>
-              <MessageSquare size={16} />
-              <span>회의록 요약 데이터 추출</span>
-            </HistoryItem>
-            <HistoryItem>
-              <MessageSquare size={16} />
-              <span>생산 공정 음성 리포트</span>
-            </HistoryItem>
-            <HistoryItem>
-              <MessageSquare size={16} />
-              <span>DB 조회 쿼리 에러 수정</span>
-            </HistoryItem>
-          </HistoryGroup>
-        </HistoryList>
-
-        <UserProfileArea>
-          <UserCard onClick={()=> router.push('/admin/database')}>
-            <Avatar>U</Avatar>
-            <UserName>User Settings</UserName>
-          </UserCard>
-        </UserProfileArea>
-      </Sidebar>
-
+      {/* 1. 분리된 사이드바 사용 */}
+      <Sidebar />
 
       {/* --- Main Content --- */}
       <MainContent>
         
-        <Header>
-          <Nav>
-            <TextBtn onClick={() => router.push('/login')}>로그인</TextBtn>
-            <Divider />
-            <BlackBtn onClick={()=> router.push('/sign')}>회원가입</BlackBtn>
-          </Nav>
-        </Header>
+        {/* 2. 분리된 네비게이션 사용 */}
+        <Navbar />
 
         <ScrollArea>
           <ContentWrapper>
@@ -183,180 +160,22 @@ export default function ExaoneChatInterface() {
   );
 }
 
-// --- Styled Components (Indentation: 2 spaces) ---
+// --- Page Layout & Content Styled Components ---
 
 const Container = styled.div`
   display: flex;
   height: 100vh;
   width: 100%;
   background-color: #ffffff;
-  color: #1e293b; /* slate-800 */
+  color: #1e293b;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   overflow: hidden;
 
   *::selection {
-    background-color: #ffe4e6; /* rose-100 */
+    background-color: #ffe4e6;
   }
 `;
 
-// Sidebar Styles
-const Sidebar = styled.aside`
-  width: 288px;
-  background-color: #f8fafc; /* slate-50 */
-  border-right: 1px solid #e2e8f0;
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-`;
-
-const LogoArea = styled.div`
-  padding: 24px;
-  padding-bottom: 16px;
-`;
-
-const LogoText = styled.h1`
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #0f172a;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  letter-spacing: -0.5px;
-`;
-
-const RedDot = styled.span`
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background-color: #e11d48; /* rose-600 */
-`;
-
-const NewChatButton = styled.button`
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px;
-  background-color: #ffffff;
-  border: 1px solid #fecdd3; /* rose-200 */
-  color: #e11d48; /* rose-600 */
-  border-radius: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-
-  &:hover {
-    background-color: #fff1f2; /* rose-50 */
-    border-color: #fda4af;
-  }
-  
-  svg {
-    transition: transform 0.3s;
-  }
-  &:hover svg {
-    transform: rotate(90deg);
-  }
-`;
-
-const HistoryList = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 16px;
-  
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background-color: #cbd5e1;
-    border-radius: 3px;
-  }
-`;
-
-const HistoryGroup = styled.div`
-  margin-bottom: 24px;
-`;
-
-const GroupLabel = styled.h3`
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #94a3b8; /* slate-400 */
-  margin-bottom: 12px;
-  padding-left: 8px;
-`;
-
-const HistoryItem = styled.div<{ $active?: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 0.875rem;
-  font-weight: 500;
-  
-  /* Active vs Inactive Styling */
-  ${props => props.$active ? css`  /* props.active -> props.$active 로 변경 */
-    background-color: #fff1f2; /* rose-50 */
-    color: #be123c; /* rose-700 */
-    svg { color: #e11d48; }
-  ` : css`
-    color: #475569; /* slate-600 */
-    svg { color: #94a3b8; }
-    &:hover {
-      background-color: #f1f5f9; /* slate-100 */
-      color: #334155;
-    }
-  `}
-
-  span {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-`;
-
-const UserProfileArea = styled.div`
-  padding: 16px;
-  border-top: 1px solid #e2e8f0;
-`;
-
-const UserCard = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-
-  &:hover {
-    background-color: #f1f5f9;
-  }
-`;
-
-const Avatar = styled.div`
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background-color: #ffe4e6;
-  color: #e11d48;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.75rem;
-`;
-
-const UserName = styled.div`
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #475569;
-`;
-
-// Main Content Styles
 const MainContent = styled.main`
   flex: 1;
   display: flex;
@@ -365,59 +184,10 @@ const MainContent = styled.main`
   background-color: #ffffff;
 `;
 
-const Header = styled.header`
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 0 32px;
-`;
-
-const Nav = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 24px;
-`;
-
-const TextBtn = styled.button`
-  background: none;
-  border: none;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #64748b;
-  cursor: pointer;
-  
-  &:hover {
-    color: #e11d48;
-  }
-`;
-
-const Divider = styled.span`
-  width: 1px;
-  height: 12px;
-  background-color: #cbd5e1;
-`;
-
-const BlackBtn = styled.button`
-  padding: 8px 16px;
-  background-color: #0f172a; /* slate-900 */
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s;
-
-  &:hover {
-    background-color: #1e293b;
-  }
-`;
-
 const ScrollArea = styled.div`
   flex: 1;
   overflow-y: auto;
-  padding: 0 32px 160px 32px; /* Bottom padding for floating input */
+  padding: 0 32px 160px 32px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -598,7 +368,7 @@ const InputFloatingArea = styled.div`
 const InputContainer = styled.div`
   position: relative;
   width: 100%;
-  max-width: 896px; /* max-w-4xl */
+  max-width: 896px;
   background-color: white;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
@@ -665,7 +435,6 @@ const SendBtn = styled.button<{ $hasText: boolean }>`
   justify-content: center;
   transition: all 0.2s;
   
-  /* props.hasText -> props.$hasText 로 변경 */
   ${props => props.$hasText ? css`
     background-color: #e11d48;
     color: white;
