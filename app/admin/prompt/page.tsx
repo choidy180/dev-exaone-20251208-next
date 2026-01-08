@@ -11,6 +11,7 @@ import {
   Info
 } from 'lucide-react';
 import AdminSidebar from '@/components/adminSidebar';
+import Navbar from '@/components/nav-bar';
 
 // --- Types & Mock Data ---
 
@@ -83,6 +84,7 @@ export default function AdminPromptPage() {
 
       {/* 메인 영역 */}
       <MainArea>
+        <Navbar />
         <Header>
           <TitleArea>
             <Title>Prompt 관리</Title>

@@ -14,6 +14,7 @@ import {
   CalendarClock
 } from 'lucide-react';
 import AdminSidebar from '@/components/adminSidebar';
+import Navbar from '@/components/nav-bar';
 
 // --- Types & Mock Data ---
 
@@ -79,6 +80,7 @@ export default function AdminAccountPage() {
       <AdminSidebar />
 
       <MainArea>
+        <Navbar />
         <Header>
           <TitleArea>
             <Title>계정 및 RPA 관리</Title>

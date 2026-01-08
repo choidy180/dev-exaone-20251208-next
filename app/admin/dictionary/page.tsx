@@ -15,6 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import AdminSidebar from '@/components/adminSidebar';
+import Navbar from '@/components/nav-bar';
 
 // --- Types & Mock Data ---
 
@@ -82,6 +83,7 @@ export default function AdminDictionaryPage() {
 
       {/* --- Main Content --- */}
       <MainArea>
+        <Navbar />
         <Header>
           <TitleArea>
             <Title>용어 사전 등록</Title>

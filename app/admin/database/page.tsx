@@ -10,6 +10,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import AdminSidebar from '@/components/adminSidebar';
+import Navbar from '@/components/nav-bar';
 
 // --- Types & Mock Data ---
 
@@ -101,6 +102,7 @@ function AdminDatabaseContent() {
 
       {/* --- Main Content --- */}
       <MainArea>
+        <Navbar />
         <Header>
           <TitleArea>
             <Title>데이터 추가하기</Title>
