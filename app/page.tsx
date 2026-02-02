@@ -1,179 +1,223 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled, { css } from 'styled-components';
-import { Mic, Send, Database, FileText } from 'lucide-react';
+import { Mic, Send, Database, FileText, User, Bot, Sparkles } from 'lucide-react';
 
 // --- Components Import ---
 import Sidebar from '@/components/side-bar';
 import Navbar from '@/components/nav-bar';
-import LandingPage from '@/components/landing-page'; // 저장하신 랜딩 페이지 컴포넌트 import
+import LandingPage from '@/components/landing-page';
+
+// --- Types ---
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 export default function Home() {
-  // 로그인 상태 관리 (null: 확인 중, false: 미로그인, true: 로그인됨)
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // 쿠키에서 user_email 확인 함수
     const checkLoginStatus = () => {
       const getCookie = (name: string) => {
         const value = `; ${document.cookie}`;
         const parts = value.split(`; ${name}=`);
         if (parts.length === 2) return parts.pop()?.split(';').shift();
       };
-
       const email = getCookie('user_email');
-      // 이메일 쿠키가 있으면 true, 없으면 false
       setIsLoggedIn(!!email);
     };
-
     checkLoginStatus();
   }, []);
 
-  // 1. 로그인 확인 중일 때 (깜빡임 방지용 빈 화면 또는 로딩 스피너)
-  if (isLoggedIn === null) {
-    return <div style={{ height: '100vh', background: '#fff' }} />; 
-  }
+  if (isLoggedIn === null) return <div style={{ height: '100vh', background: '#fff' }} />;
+  if (!isLoggedIn) return <LandingPage />;
 
-  // 2. 비로그인 상태 -> 랜딩 페이지 노출
-  if (!isLoggedIn) {
-    return <LandingPage />;
-  }
-
-  // 3. 로그인 상태 -> 채팅 인터페이스 노출 (기존 코드)
   return <ExaoneChatInterface />;
 }
 
-// --- Logged In Chat Interface (기존 코드 컴포넌트화) ---
-
 function ExaoneChatInterface() {
   const [inputText, setInputText] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  // UI용 고정 응답 리스트 (랜덤 활용)
+  const prefixes = [
+    "문의하신 내용에 대해 EXAONE이 확인한 결과입니다.\n\n",
+    "요청하신 데이터를 분석해 보았습니다.\n\n",
+    "네, 확인되었습니다. 결과는 다음과 같습니다.\n\n"
+  ];
+
+  const suffixes = [
+    "\n\n추가로 궁금하신 사항이 있으시면 언제든 말씀해 주세요.",
+    "\n\n답변이 도움이 되셨나요? 더 상세한 정보가 필요하시면 요청해 주세요.",
+    "\n\n관련하여 다른 데이터 조회도 가능합니다."
+  ];
+
+  const handleSend = async (overrideText?: string) => {
+    const actualValue = overrideText || inputText;
+    if (!actualValue.trim() || isLoading) return;
+
+    setMessages((prev) => [...prev, { role: 'user', content: actualValue }]);
+    setInputText('');
+    setIsLoading(true);
+
+    // AI 응답 공간 생성 (처음에는 빈값)
+    setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
+
+    try {
+      const response = await fetch('/api/agent/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: actualValue }), // API에는 순수 입력값만 전송
+      });
+
+      if (!response.body) throw new Error("No response body");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      
+      // UI 전용 문구 선택 (랜덤)
+      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+      
+      let apiAccumulated = ""; // API에서 오는 순수 데이터 누적
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (!line.trim() || !line.startsWith('data: ')) continue;
+
+          const jsonStr = line.replace('data: ', '');
+          try {
+            const payload = JSON.parse(jsonStr);
+
+            if (payload.type === 'token') {
+              apiAccumulated += payload.data;
+              // UI 상에서는 [접두어 + API 데이터] 조합으로 출력
+              updateLastMessage(prefix + apiAccumulated);
+            } else if (payload.type === 'final') {
+              // 최종 단계에서 [접두어 + 최종 API 데이터 + 접미어] 결합
+              const finalContent = prefix + payload.data.assistant_message + suffix;
+              updateLastMessage(finalContent);
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+    } catch (error) {
+      updateLastMessage("서비스 연결 상태를 확인해 주세요.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateLastMessage = (content: string) => {
+    setMessages((prev) => {
+      const updated = [...prev];
+      if (updated.length > 0) updated[updated.length - 1].content = content;
+      return updated;
+    });
+  };
 
   return (
     <Container>
-      {/* 1. 분리된 사이드바 사용 */}
       <Sidebar />
-
-      {/* --- Main Content --- */}
       <MainContent>
-        
-        {/* 2. 분리된 네비게이션 사용 */}
         <Navbar />
-
-        <ScrollArea>
+        <ScrollArea ref={scrollRef}>
           <ContentWrapper>
-            
-            <WelcomeSection>
-              <h2>무엇을 도와드릴까요?</h2>
-              <p>데이터 조회부터 요약, 음성 인식까지 EXAONE이 지원합니다.</p>
-            </WelcomeSection>
-
-            <CardsGrid>
-              {/* Card 1 */}
-              <FeatureCard>
-                <IconBox color="#e11d48" bg="#fff1f2">
-                  <Database size={24} />
-                </IconBox>
-                <CardTitle>NL-to-SQL (조회)</CardTitle>
-                <CardBody>
-                  <ul>
-                    <li><span>•</span> <strong>@현장</strong> DB 정보 조회</li>
-                    <li><span>•</span> <strong>@회의실</strong> 데이터 추출</li>
-                    <li><span>•</span> <strong>@일반</strong> 자유 질의</li>
-                  </ul>
-                </CardBody>
-                <CardFooter>시작하기 →</CardFooter>
-              </FeatureCard>
-
-              {/* Card 2 */}
-              <FeatureCard>
-                <IconBox color="#ea580c" bg="#fff7ed">
-                  <FileText size={24} />
-                </IconBox>
-                <CardTitle>NL-to-SQL (요약/리포트)</CardTitle>
-                <CardBody>
-                  <p>
-                    DB로부터 데이터를 추출하여<br/>
-                    <strong>요약 정보를 생성</strong>하고<br/>
-                    리포팅 문서를 작성합니다.
-                  </p>
-                </CardBody>
-                <CardFooter>시작하기 →</CardFooter>
-              </FeatureCard>
-
-              {/* Card 3 */}
-              <FeatureCard>
-                <IconBox color="#4f46e5" bg="#eef2ff">
-                  <Mic size={24} />
-                </IconBox>
-                <CardTitle>Speech-to-Text</CardTitle>
-                <CardBody>
-                  <div className="steps">
-                    <p>음성을 텍스트로 변환합니다.</p>
-                    <div className="step-box">
-                      <span>Step 1.</span> 마이크 입력<br/>
-                      <span>Step 2.</span> 동의어 사전 보정<br/>
-                      <span>Step 3.</span> 사용자 확인 후 전송
-                    </div>
-                  </div>
-                </CardBody>
-                <CardFooter>시작하기 →</CardFooter>
-              </FeatureCard>
-            </CardsGrid>
-
-            <FAQSection>
-              <span>자주하는 질문</span>
-              <div className="chips">
-                <Chip>지난달 생산량 리포트 뽑아줘</Chip>
-                <Chip>회의실 B 예약 현황 알려줘</Chip>
-                <Chip>음성 인식 모드 시작</Chip>
-              </div>
-            </FAQSection>
-
+            {messages.length === 0 ? (
+              <>
+                <WelcomeSection>
+                  <h2>무엇을 도와드릴까요?</h2>
+                  <p>데이터 조회부터 요약, 음성 인식까지 EXAONE이 지원합니다.</p>
+                </WelcomeSection>
+                <CardsGrid>
+                  <FeatureCard onClick={() => handleSend("@현장 DB 정보 조회해줘")}>
+                    <IconBox color="#e11d48" bg="#fff1f2"><Database size={24} /></IconBox>
+                    <CardTitle>NL-to-SQL (조회)</CardTitle>
+                    <CardBody>
+                      <ul>
+                        <li><span>•</span> <strong>@현장</strong> DB 정보 조회</li>
+                        <li><span>•</span> <strong>@회의실</strong> 데이터 추출</li>
+                        <li><span>•</span> <strong>@일반</strong> 자유 질의</li>
+                      </ul>
+                    </CardBody>
+                    <CardFooter>시작하기 →</CardFooter>
+                  </FeatureCard>
+                  {/* 카드 생략 */}
+                </CardsGrid>
+              </>
+            ) : (
+              <ChatLog>
+                {messages.map((msg, idx) => (
+                  <MessageRow key={idx} $isUser={msg.role === 'user'}>
+                    <Avatar $isUser={msg.role === 'user'}>
+                      {msg.role === 'user' ? <User size={18} /> : <Sparkles size={18} />}
+                    </Avatar>
+                    <MessageBubble $isUser={msg.role === 'user'}>
+                      <div className="sender">{msg.role === 'user' ? '나' : 'EXAONE'}</div>
+                      <div className="content">{msg.content}</div>
+                    </MessageBubble>
+                  </MessageRow>
+                ))}
+              </ChatLog>
+            )}
           </ContentWrapper>
         </ScrollArea>
 
         <InputFloatingArea>
           <InputContainer>
-            <MicBtn>
-              <Mic size={24} />
-            </MicBtn>
-
+            <MicBtn><Mic size={24} /></MicBtn>
             <TextArea 
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="문의하실 내용을 텍스트 또는 음성으로 입력하세요."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder="문의하실 내용을 입력하세요."
               rows={1}
             />
-
-            <SendBtn disabled={!inputText.trim()} $hasText={!!inputText.trim()}>
+            <SendBtn 
+              onClick={() => handleSend()}
+              disabled={!inputText.trim() || isLoading} 
+              $hasText={!!inputText.trim()}
+            >
               <Send size={20} />
             </SendBtn>
           </InputContainer>
-          <Disclaimer>
-            AI는 실수를 할 수 있습니다. 중요한 정보는 확인이 필요합니다.
-          </Disclaimer>
+          <Disclaimer>AI는 실수를 할 수 있습니다. 중요한 정보는 확인이 필요합니다.</Disclaimer>
         </InputFloatingArea>
-
       </MainContent>
     </Container>
   );
 }
 
-// --- Page Layout & Content Styled Components ---
+// --- Styled Components (속성 줄바꿈 적용) ---
 
 const Container = styled.div`
   display: flex;
   height: 100vh;
   width: 100%;
   background-color: #ffffff;
-  color: #1e293b;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  overflow: hidden;
-
-  *::selection {
-    background-color: #ffe4e6;
-  }
 `;
 
 const MainContent = styled.main`
@@ -181,30 +225,77 @@ const MainContent = styled.main`
   display: flex;
   flex-direction: column;
   position: relative;
-  background-color: #ffffff;
 `;
 
 const ScrollArea = styled.div`
   flex: 1;
   overflow-y: auto;
-  padding: 0 32px 160px 32px;
+  padding: 40px 32px 180px 32px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  scroll-behavior: smooth;
 `;
 
 const ContentWrapper = styled.div`
   width: 100%;
-  max-width: 1024px;
+  max-width: 800px;
+`;
+
+const ChatLog = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 48px;
+  gap: 32px;
+  width: 100%;
+`;
+
+const MessageRow = styled.div<{ $isUser: boolean }>`
+  display: flex;
+  gap: 16px;
+  flex-direction: ${props => (props.$isUser ? 'row-reverse' : 'row')};
+  align-items: flex-start;
+`;
+
+const Avatar = styled.div<{ $isUser: boolean }>`
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: ${props => (props.$isUser ? '#f1f5f9' : '#fff1f2')};
+  color: ${props => (props.$isUser ? '#64748b' : '#e11d48')};
+  flex-shrink: 0;
+  border: 1px solid ${props => (props.$isUser ? '#e2e8f0' : '#ffe4e6')};
+`;
+
+const MessageBubble = styled.div<{ $isUser: boolean }>`
+  max-width: 80%;
+  
+  .sender {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: #94a3b8;
+    text-align: ${props => (props.$isUser ? 'right' : 'left')};
+  }
+
+  .content {
+    background-color: ${props => (props.$isUser ? '#334155' : '#ffffff')};
+    color: ${props => (props.$isUser ? '#ffffff' : '#1e293b')};
+    padding: 12px 16px;
+    border-radius: ${props => (props.$isUser ? '16px 4px 16px 16px' : '4px 16px 16px 16px')};
+    font-size: 0.95rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    border: ${props => (props.$isUser ? 'none' : '1px solid #f1f5f9')};
+  }
 `;
 
 const WelcomeSection = styled.div`
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 48px;
 
   h2 {
     font-size: 1.875rem;
@@ -212,6 +303,7 @@ const WelcomeSection = styled.div`
     color: #0f172a;
     margin-bottom: 8px;
   }
+
   p {
     color: #64748b;
   }
@@ -220,7 +312,8 @@ const WelcomeSection = styled.div`
 const CardsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(1, 1fr);
-  gap: 24px;
+  gap: 20px;
+  margin-bottom: 48px;
 
   @media (min-width: 768px) {
     grid-template-columns: repeat(3, 1fr);
@@ -228,27 +321,23 @@ const CardsGrid = styled.div`
 `;
 
 const FeatureCard = styled.div`
-  background-color: #fff;
+  background: #fff;
   border: 1px solid #f1f5f9;
   border-radius: 16px;
   padding: 24px;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s;
 
   &:hover {
     transform: translateY(-4px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
   }
 `;
 
 const IconBox = styled.div<{ color: string; bg: string }>`
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -258,44 +347,27 @@ const IconBox = styled.div<{ color: string; bg: string }>`
 `;
 
 const CardTitle = styled.h3`
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 700;
-  color: #1e293b;
   margin-bottom: 8px;
 `;
 
 const CardBody = styled.div`
-  flex: 1;
-  font-size: 0.875rem;
-  color: #475569;
+  font-size: 0.85rem;
+  color: #64748b;
   line-height: 1.5;
 
   ul {
     list-style: none;
     padding: 0;
-    margin-top: 8px;
+
     li {
       display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 4px;
-      span { color: #e11d48; font-weight: bold; }
-      strong { color: #334155; }
-    }
-  }
-
-  .steps {
-    p { margin-bottom: 8px; }
-    .step-box {
-      background-color: #ffffff;
-      border: 1px solid #f1f5f9;
-      border-radius: 4px;
-      padding: 8px;
-      font-size: 0.75rem;
-      color: #64748b;
+      gap: 4px;
+      margin-bottom: 2px;
+      
       span {
-        color: #4f46e5;
-        font-weight: 600;
+        color: #e11d48;
       }
     }
   }
@@ -303,54 +375,9 @@ const CardBody = styled.div`
 
 const CardFooter = styled.div`
   margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #f8fafc;
-  text-align: right;
   font-size: 0.75rem;
-  font-weight: 600;
-  color: #94a3b8;
-  
-  ${FeatureCard}:hover & {
-    color: #e11d48;
-  }
-`;
-
-const FAQSection = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-
-  span {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #94a3b8;
-  }
-  
-  .chips {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 12px;
-  }
-`;
-
-const Chip = styled.button`
-  padding: 8px 16px;
-  background-color: #fff;
-  border: 1px solid #e2e8f0;
-  color: #475569;
-  border-radius: 9999px;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-
-  &:hover {
-    border-color: #fecdd3;
-    color: #e11d48;
-    background-color: #fff1f2;
-  }
+  color: #cbd5e1;
+  text-align: right;
 `;
 
 const InputFloatingArea = styled.div`
@@ -359,101 +386,65 @@ const InputFloatingArea = styled.div`
   left: 0;
   width: 100%;
   padding: 40px 32px 32px;
-  background: linear-gradient(to top, white 60%, transparent);
+  background: linear-gradient(to top, white 70%, transparent);
   display: flex;
   flex-direction: column;
   align-items: center;
 `;
 
 const InputContainer = styled.div`
-  position: relative;
   width: 100%;
-  max-width: 896px;
-  background-color: white;
+  max-width: 800px;
+  background: white;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
   padding: 8px;
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  transition: all 0.2s;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 
   &:focus-within {
     border-color: #fda4af;
-    box-shadow: 0 0 0 2px #fff1f2;
   }
 `;
 
 const MicBtn = styled.button`
-  padding: 12px;
+  padding: 10px;
   color: #94a3b8;
   background: none;
   border: none;
-  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s;
 
   &:hover {
     color: #e11d48;
-    background-color: #fff1f2;
   }
 `;
 
 const TextArea = styled.textarea`
-  width: 100%;
-  min-height: 48px;
-  max-height: 128px;
-  padding: 12px 8px;
+  flex: 1;
+  min-height: 44px;
+  max-height: 150px;
+  padding: 10px 0;
   border: none;
   outline: none;
-  background: transparent;
   resize: none;
   font-size: 1rem;
-  color: #1e293b;
   font-family: inherit;
-
-  &::placeholder {
-    color: #94a3b8;
-  }
-  
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background-color: #cbd5e1;
-  }
 `;
 
 const SendBtn = styled.button<{ $hasText: boolean }>`
-  padding: 12px;
+  padding: 10px;
   border-radius: 12px;
   border: none;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background-color: ${props => (props.$hasText ? '#e11d48' : '#f1f5f9')};
+  color: ${props => (props.$hasText ? '#fff' : '#cbd5e1')};
+  cursor: ${props => (props.$hasText ? 'pointer' : 'not-allowed')};
   transition: all 0.2s;
-  
-  ${props => props.$hasText ? css`
-    background-color: #e11d48;
-    color: white;
-    box-shadow: 0 4px 6px -1px rgba(225, 29, 72, 0.3);
-    cursor: pointer;
-    &:hover {
-      background-color: #be123c;
-      transform: scale(1.05);
-    }
-  ` : css`
-    background-color: #f1f5f9;
-    color: #cbd5e1;
-    cursor: not-allowed;
-  `}
 `;
 
 const Disclaimer = styled.p`
   margin-top: 12px;
   font-size: 11px;
-  color: #94a3b8;
-  text-align: center;
+  color: #cbd5e1;
 `;
